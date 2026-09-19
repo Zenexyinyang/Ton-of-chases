@@ -10,12 +10,16 @@ Hey! This is a little fanmade project based on Ton of Chases from Roblox. I made
 
 ◆————————————◆
 
+# info
+
 * 👤 Made by a fan.
 * 👻 Inspired by the original game.
 * 🔧 Some things may be different.
 * 💡 More stuff may be added later.
 
 ◆————————————◆
+
+# download
 
 📱 HOW TO GET IT ON MOBILE
 
@@ -26,9 +30,11 @@ Hey! This is a little fanmade project based on Ton of Chases from Roblox. I made
 
 ◆————————————◆
 
-⚠️ IMPORTANT ⚠️
+# ⚠️ IMPORTANT ⚠️
 
 This is NOT the official Ton of Chases game. Ton of Chases and its original content belong to their respective creators.
+
+# thank "you"
 
 ◆————————————◆
 
