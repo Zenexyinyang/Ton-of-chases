@@ -34,9 +34,11 @@ Hey! This is a little fanmade project based on Ton of Chases from Roblox. I made
 
 This is NOT the official Ton of Chases game. Ton of Chases and its original content belong to their respective creators.
 
-# thank "you"
+
 
 ◆————————————◆
+
+# thanks
 
 ❤️ THANK YOU FOR READING THIS DESC! ❤️
 
