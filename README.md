@@ -10,7 +10,7 @@ Hey! This is a little fanmade project based on Ton of Chases from Roblox. I made
 
 ◆————————————◆
 
-# 👻 what is ton if chases?
+# 👻 what is ton of chases?
 
 Ton of Chases is a Roblox chase/escape game where players have to make it through different Sublevels while being chased by different Chasers. The game includes several types of chases, including ones based on 6:06 PM, as well as custom and joke chases. 
 
