@@ -1,0 +1,126 @@
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:none;
+}
+
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+}
+
+canvas{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+}
+
+
+/* =========================
+   JOYSTICK
+========================= */
+
+#joystick{
+  position:fixed;
+  left:25px;
+  bottom:25px;
+
+  width:135px;
+  height:135px;
+
+  border-radius:50%;
+
+  background:rgba(80,80,80,.28);
+  border:3px solid rgba(255,255,255,.28);
+
+  box-shadow:
+    inset 0 0 25px rgba(255,255,255,.08),
+    0 5px 25px rgba(0,0,0,.65);
+
+  z-index:50;
+}
+
+#stick{
+  position:absolute;
+
+  width:58px;
+  height:58px;
+
+  left:35px;
+  top:35px;
+
+  border-radius:50%;
+
+  background:rgba(100,100,100,.75);
+  border:2px solid rgba(255,255,255,.4);
+
+  box-shadow:
+    0 4px 15px rgba(0,0,0,.7);
+
+  pointer-events:none;
+}
+
+
+/* =========================
+   ANNOUNCEMENT
+========================= */
+
+#announcement{
+  position:fixed;
+
+  left:0;
+  top:42px;
+
+  width:100%;
+
+  text-align:center;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size:clamp(30px,6vw,82px);
+
+  font-weight:bold;
+
+  color:#e60000;
+
+  text-shadow:
+    3px 3px 0 #160000,
+    -1px -1px 0 #ff4444,
+    0 0 6px #900000;
+
+  opacity:0;
+
+  pointer-events:none;
+
+  z-index:100;
+
+  transition:none;
+}
+
+
+/* =========================
+   LANDSCAPE PHONE
+========================= */
+
+@media (orientation:landscape) and (max-height:600px){
+
+  #announcement{
+    font-size:clamp(20px,4vw,46px);
+    top:24px;
+  }
+}
+
+
+#announcement.show{
+  opacity:1;
+}
