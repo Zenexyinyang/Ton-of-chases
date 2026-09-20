@@ -36,11 +36,17 @@ Ton of Chases is a Roblox chase/escape game where players have to make it throug
 
 ◆————————————◆
 
+🛠️ WANNA MAKE ONE YOUR OWN?
+
+Just copy my code, paste it into an HTML file, and configure it to make your own custom Sublevels!
+
+(I recommend doing this if you’re a skilled programmer.)
+
+◆————————————◆
+
 # ⚠️ IMPORTANT ⚠️
 
 This is NOT the official Ton of Chases game. Ton of Chases and its original content belong to their respective creators.
-
-
 
 ◆————————————◆
 
