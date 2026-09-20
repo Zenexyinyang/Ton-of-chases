@@ -1,0 +1,1427 @@
+/* =========================
+   CANVAS
+========================= */
+
+const canvas = document.getElementById("game");
+
+const ctx = canvas.getContext("2d", {
+  alpha: false
+});
+
+let W = 0;
+let H = 0;
+
+
+/* =========================
+   RESIZE
+========================= */
+
+function resize(){
+
+  W = innerWidth;
+  H = innerHeight;
+
+  const dpr = Math.min(
+    devicePixelRatio || 1,
+    2
+  );
+
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+
+  ctx.setTransform(
+    dpr,
+    0,
+    0,
+    dpr,
+    0,
+    0
+  );
+}
+
+addEventListener("resize", resize);
+
+resize();
+
+
+/* =========================
+   GAME SETTINGS
+========================= */
+
+const TILE = 46;
+
+const MAP_W = 71;
+const MAP_H = 45;
+
+let maze = [];
+
+
+/* =========================
+   PLAYER
+========================= */
+
+const player = {
+
+  x: 0,
+  y: 0,
+
+  radius: 9,
+
+  speed: 180
+};
+
+let spawnX = 0;
+let spawnY = 0;
+
+
+/* =========================
+   TRIGGER
+========================= */
+
+const trigger = {
+
+  x: 0,
+  y: 0,
+
+  activated: false
+};
+
+
+/* =========================
+   CHASER
+========================= */
+
+const chaser = {
+
+  x: 0,
+  y: 0,
+
+  active: false,
+
+  speed: 165,
+
+  size: 58,
+
+  hitbox: 8
+};
+
+
+/* =========================
+   ANNOUNCEMENT
+========================= */
+
+const announcement =
+  document.getElementById("announcement");
+
+let announcementTimer = 0;
+
+
+function showAnnouncement(){
+
+  announcement.style.transition = "none";
+
+  announcement.classList.add("show");
+
+  announcementTimer = 4.5;
+}
+
+
+function hideAnnouncement(){
+
+  announcement.style.transition =
+    "opacity 1s ease";
+
+  announcement.classList.remove("show");
+}
+
+
+/* =========================
+   JOYSTICK
+========================= */
+
+const joystick =
+  document.getElementById("joystick");
+
+const stick =
+  document.getElementById("stick");
+
+let joyX = 0;
+let joyY = 0;
+
+let joystickActive = false;
+
+const MAX_STICK = 38;
+
+
+function setJoystick(x, y){
+
+  const rect =
+    joystick.getBoundingClientRect();
+
+  const centerX =
+    rect.left + rect.width / 2;
+
+  const centerY =
+    rect.top + rect.height / 2;
+
+  let dx = x - centerX;
+  let dy = y - centerY;
+
+  const length =
+    Math.sqrt(
+      dx * dx +
+      dy * dy
+    );
+
+  if(length > MAX_STICK){
+
+    dx =
+      dx / length *
+      MAX_STICK;
+
+    dy =
+      dy / length *
+      MAX_STICK;
+  }
+
+  joyX = dx / MAX_STICK;
+  joyY = dy / MAX_STICK;
+
+  stick.style.transform =
+    `translate3d(
+      ${dx}px,
+      ${dy}px,
+      0
+    )`;
+}
+
+
+function resetJoystick(){
+
+  joystickActive = false;
+
+  joyX = 0;
+  joyY = 0;
+
+  stick.style.transform =
+    "translate3d(0,0,0)";
+}
+
+
+/* =========================
+   TOUCH CONTROLS
+========================= */
+
+joystick.addEventListener(
+  "touchstart",
+  e => {
+
+    e.preventDefault();
+
+    joystickActive = true;
+
+    const t = e.touches[0];
+
+    setJoystick(
+      t.clientX,
+      t.clientY
+    );
+
+  },
+  { passive: false }
+);
+
+
+joystick.addEventListener(
+  "touchmove",
+  e => {
+
+    e.preventDefault();
+
+    if(!joystickActive)
+      return;
+
+    const t = e.touches[0];
+
+    setJoystick(
+      t.clientX,
+      t.clientY
+    );
+
+  },
+  { passive: false }
+);
+
+
+joystick.addEventListener(
+  "touchend",
+  e => {
+
+    e.preventDefault();
+
+    resetJoystick();
+
+  },
+  { passive: false }
+);
+
+
+joystick.addEventListener(
+  "touchcancel",
+  e => {
+
+    e.preventDefault();
+
+    resetJoystick();
+
+  },
+  { passive: false }
+);
+
+
+/* =========================
+   MOUSE CONTROLS
+========================= */
+
+let mouseJoy = false;
+
+
+joystick.addEventListener(
+  "mousedown",
+  e => {
+
+    mouseJoy = true;
+
+    setJoystick(
+      e.clientX,
+      e.clientY
+    );
+  }
+);
+
+
+addEventListener(
+  "mousemove",
+  e => {
+
+    if(mouseJoy){
+
+      setJoystick(
+        e.clientX,
+        e.clientY
+      );
+    }
+  }
+);
+
+
+addEventListener(
+  "mouseup",
+  () => {
+
+    mouseJoy = false;
+
+    if(!joystickActive)
+      resetJoystick();
+
+  }
+);
+
+
+/* =========================
+   MAZE GENERATION
+========================= */
+
+function createMaze(){
+
+  maze = [];
+
+  for(let y = 0; y < MAP_H; y++){
+
+    maze[y] = [];
+
+    for(let x = 0; x < MAP_W; x++){
+
+      maze[y][x] = "#";
+    }
+  }
+
+
+  function carve(x, y){
+
+    maze[y][x] = ".";
+
+    const dirs = [
+
+      [2, 0],
+      [-2, 0],
+      [0, 2],
+      [0, -2]
+
+    ];
+
+
+    for(
+      let i = dirs.length - 1;
+      i > 0;
+      i--
+    ){
+
+      const j =
+        Math.floor(
+          Math.random() * (i + 1)
+        );
+
+      [
+        dirs[i],
+        dirs[j]
+      ] =
+      [
+        dirs[j],
+        dirs[i]
+      ];
+    }
+
+
+    for(const d of dirs){
+
+      const nx = x + d[0];
+      const ny = y + d[1];
+
+      if(
+
+        nx > 0 &&
+        ny > 0 &&
+        nx < MAP_W - 1 &&
+        ny < MAP_H - 1 &&
+        maze[ny][nx] === "#"
+
+      ){
+
+        maze[
+          y + d[1] / 2
+        ][
+          x + d[0] / 2
+        ] = ".";
+
+        carve(nx, ny);
+      }
+    }
+  }
+
+
+  carve(1, 1);
+
+
+  /* =====================
+     STARTING HALLWAY
+  ===================== */
+
+  const hallwayY = 3;
+
+  const hallwayStart = 1;
+
+  const hallwayLength = 16;
+
+  const hallwayEnd =
+    hallwayStart +
+    hallwayLength;
+
+
+  for(
+    let x = hallwayStart;
+    x <= hallwayEnd;
+    x++
+  ){
+
+    maze[hallwayY][x] = ".";
+  }
+
+
+  maze[
+    hallwayY
+  ][
+    hallwayEnd + 1
+  ] = ".";
+
+
+  /* =====================
+     PLAYER SPAWN
+  ===================== */
+
+  player.x =
+    hallwayStart * TILE +
+    TILE / 2;
+
+  player.y =
+    hallwayY * TILE +
+    TILE / 2;
+
+  spawnX = player.x;
+  spawnY = player.y;
+
+
+  /* =====================
+     INVISIBLE TRIGGER
+  ===================== */
+
+  const distanceDownHallway = 11;
+
+  trigger.x =
+    (
+      hallwayStart +
+      distanceDownHallway
+    ) * TILE +
+    TILE / 2;
+
+  trigger.y =
+    hallwayY * TILE +
+    TILE / 2;
+
+  trigger.activated = false;
+
+  chaser.active = false;
+}
+
+
+createMaze();
+
+
+/* =========================
+   WALL CHECK
+========================= */
+
+function isWall(x, y){
+
+  const gx =
+    Math.floor(x / TILE);
+
+  const gy =
+    Math.floor(y / TILE);
+
+
+  if(
+
+    gx < 0 ||
+    gy < 0 ||
+    gx >= MAP_W ||
+    gy >= MAP_H
+
+  ){
+
+    return true;
+  }
+
+  return maze[gy][gx] === "#";
+}
+
+
+/* =========================
+   PLAYER COLLISION
+========================= */
+
+function canMoveTo(x, y){
+
+  const r = player.radius;
+
+  return(
+
+    !isWall(x - r, y) &&
+    !isWall(x + r, y) &&
+    !isWall(x, y - r) &&
+    !isWall(x, y + r) &&
+
+    !isWall(
+      x - r * .7,
+      y - r * .7
+    ) &&
+
+    !isWall(
+      x + r * .7,
+      y - r * .7
+    ) &&
+
+    !isWall(
+      x - r * .7,
+      y + r * .7
+    ) &&
+
+    !isWall(
+      x + r * .7,
+      y + r * .7
+    )
+
+  );
+}
+
+
+function movePlayer(dx, dy){
+
+  const nx = player.x + dx;
+
+  if(
+    canMoveTo(
+      nx,
+      player.y
+    )
+  ){
+
+    player.x = nx;
+  }
+
+
+  const ny = player.y + dy;
+
+  if(
+    canMoveTo(
+      player.x,
+      ny
+    )
+  ){
+
+    player.y = ny;
+  }
+}
+
+
+/* =========================
+   START CHASE
+========================= */
+
+function startChase(){
+
+  if(trigger.activated)
+    return;
+
+  trigger.activated = true;
+
+  chaser.x = spawnX;
+  chaser.y = spawnY;
+
+  chaser.active = true;
+
+  showAnnouncement();
+}
+
+
+/* =========================
+   TRIGGER CHECK
+========================= */
+
+function checkTrigger(){
+
+  if(trigger.activated)
+    return;
+
+  const dx =
+    player.x -
+    trigger.x;
+
+  const dy =
+    player.y -
+    trigger.y;
+
+  const distance =
+    Math.sqrt(
+      dx * dx +
+      dy * dy
+    );
+
+
+  if(
+    distance <
+    TILE * .65
+  ){
+
+    startChase();
+  }
+}
+
+
+/* =========================
+   CHASER MOVEMENT
+========================= */
+
+function updateChaser(dt){
+
+  if(!chaser.active)
+    return;
+
+
+  const dx =
+    player.x -
+    chaser.x;
+
+  const dy =
+    player.y -
+    chaser.y;
+
+  const distance =
+    Math.sqrt(
+      dx * dx +
+      dy * dy
+    );
+
+
+  if(distance > .001){
+
+    const vx = dx / distance;
+    const vy = dy / distance;
+
+    chaser.x +=
+      vx *
+      chaser.speed *
+      dt;
+
+    chaser.y +=
+      vy *
+      chaser.speed *
+      dt;
+  }
+
+
+  const newDX =
+    player.x -
+    chaser.x;
+
+  const newDY =
+    player.y -
+    chaser.y;
+
+  const newDistance =
+    Math.sqrt(
+      newDX * newDX +
+      newDY * newDY
+    );
+
+
+  if(
+    newDistance <
+    chaser.hitbox
+  ){
+
+    chaser.active = false;
+
+    player.x = spawnX;
+    player.y = spawnY;
+
+    trigger.activated = false;
+  }
+}
+
+
+/* =========================
+   SMILE FACE
+========================= */
+
+function drawSmileFace(
+  x,
+  y,
+  size
+){
+
+  const eyeW = size * .115;
+  const eyeH = size * .235;
+
+  ctx.fillStyle = "#030303";
+
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    x - size * .22,
+    y - size * .08,
+    eyeW,
+    eyeH,
+    0,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    x + size * .22,
+    y - size * .08,
+    eyeW,
+    eyeH,
+    0,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  ctx.fillStyle = "#fff";
+
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    x - size * .255,
+    y - size * .16,
+    size * .035,
+    size * .075,
+    0,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  ctx.beginPath();
+
+  ctx.ellipse(
+    x + size * .185,
+    y - size * .16,
+    size * .035,
+    size * .075,
+    0,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  ctx.strokeStyle = "#050505";
+
+  ctx.lineWidth =
+    Math.max(
+      1.5,
+      size * .035
+    );
+
+  ctx.lineCap = "round";
+
+
+  ctx.beginPath();
+
+  ctx.moveTo(
+    x - size * .39,
+    y + size * .15
+  );
+
+  ctx.quadraticCurveTo(
+    x,
+    y + size * .45,
+    x + size * .39,
+    y + size * .15
+  );
+
+  ctx.stroke();
+
+
+  ctx.lineWidth =
+    Math.max(
+      1,
+      size * .018
+    );
+
+
+  ctx.beginPath();
+
+  ctx.moveTo(
+    x - size * .27,
+    y + size * .27
+  );
+
+  ctx.quadraticCurveTo(
+    x,
+    y + size * .40,
+    x + size * .27,
+    y + size * .27
+  );
+
+  ctx.stroke();
+}
+
+
+/* =========================
+   WALL DRAWING
+========================= */
+
+function drawWall(gx, gy){
+
+  const x = gx * TILE;
+  const y = gy * TILE;
+
+  ctx.fillStyle = "#eeeeee";
+
+  ctx.fillRect(
+    x,
+    y,
+    TILE,
+    TILE
+  );
+
+  ctx.strokeStyle = "#d2d2d2";
+
+  ctx.lineWidth = 1;
+
+  ctx.strokeRect(
+    x + .5,
+    y + .5,
+    TILE - 1,
+    TILE - 1
+  );
+
+  drawSmileFace(
+    x + TILE / 2,
+    y + TILE / 2,
+    TILE * .83
+  );
+}
+
+
+/* =========================
+   PIXEL HELPER
+========================= */
+
+function pixel(
+  x,
+  y,
+  w,
+  h,
+  color
+){
+
+  ctx.fillStyle = color;
+
+  ctx.fillRect(
+    Math.round(x),
+    Math.round(y),
+    Math.round(w),
+    Math.round(h)
+  );
+}
+
+
+/* =========================
+   CHASER DRAWING
+========================= */
+
+function drawChaser(){
+
+  if(!chaser.active)
+    return;
+
+
+  const x = chaser.x;
+  const y = chaser.y;
+  const s = chaser.size;
+
+
+  const glow =
+    ctx.createRadialGradient(
+      x,
+      y,
+      2,
+      x,
+      y,
+      s * 1.8
+    );
+
+
+  glow.addColorStop(
+    0,
+    "rgba(255,30,0,.42)"
+  );
+
+  glow.addColorStop(
+    .45,
+    "rgba(255,30,0,.18)"
+  );
+
+  glow.addColorStop(
+    1,
+    "rgba(255,0,0,0)"
+  );
+
+
+  ctx.fillStyle = glow;
+
+
+  ctx.beginPath();
+
+  ctx.arc(
+    x,
+    y,
+    s * 1.8,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  const left = x - s * .5;
+  const top = y - s * .5;
+
+
+  pixel(
+    left + s * .15,
+    top + s * .02,
+    s * .20,
+    s * .08,
+    "#850000"
+  );
+
+
+  pixel(
+    left + s * .65,
+    top + s * .02,
+    s * .20,
+    s * .08,
+    "#850000"
+  );
+
+
+  pixel(
+    left + s * .10,
+    top + s * .11,
+    s * .27,
+    s * .39,
+    "#ff0800"
+  );
+
+
+  pixel(
+    left + s * .16,
+    top + s * .13,
+    s * .16,
+    s * .31,
+    "#ff4b00"
+  );
+
+
+  pixel(
+    left + s * .21,
+    top + s * .18,
+    s * .07,
+    s * .19,
+    "#fff000"
+  );
+
+
+  pixel(
+    left + s * .63,
+    top + s * .11,
+    s * .27,
+    s * .39,
+    "#ff0800"
+  );
+
+
+  pixel(
+    left + s * .69,
+    top + s * .13,
+    s * .16,
+    s * .31,
+    "#ff4b00"
+  );
+
+
+  pixel(
+    left + s * .74,
+    top + s * .18,
+    s * .07,
+    s * .19,
+    "#fff000"
+  );
+
+
+  pixel(
+    left + s * .04,
+    top + s * .20,
+    s * .06,
+    s * .25,
+    "#ff1800"
+  );
+
+
+  pixel(
+    left + s * .90,
+    top + s * .20,
+    s * .06,
+    s * .25,
+    "#ff1800"
+  );
+
+
+  pixel(
+    left + s * .18,
+    top + s * .62,
+    s * .64,
+    s * .07,
+    "#ff1300"
+  );
+
+
+  pixel(
+    left + s * .12,
+    top + s * .69,
+    s * .76,
+    s * .07,
+    "#ff3000"
+  );
+
+
+  pixel(
+    left + s * .19,
+    top + s * .76,
+    s * .62,
+    s * .07,
+    "#ff6100"
+  );
+
+
+  pixel(
+    left + s * .30,
+    top + s * .70,
+    s * .40,
+    s * .055,
+    "#ffb000"
+  );
+
+
+  pixel(
+    left + s * .04,
+    top + s * .06,
+    s * .06,
+    s * .09,
+    "#ff2900"
+  );
+
+
+  pixel(
+    left + s * .91,
+    top + s * .08,
+    s * .05,
+    s * .10,
+    "#ff2900"
+  );
+
+
+  pixel(
+    left + s * .08,
+    top + s * .56,
+    s * .07,
+    s * .08,
+    "#ff4b00"
+  );
+
+
+  pixel(
+    left + s * .85,
+    top + s * .55,
+    s * .07,
+    s * .08,
+    "#ff4b00"
+  );
+
+
+  const flicker =
+    Math.floor(
+      performance.now() / 90
+    ) % 4;
+
+
+  if(flicker === 0){
+
+    pixel(
+      left + s * .39,
+      top + s * .50,
+      s * .07,
+      s * .06,
+      "#ff8c00"
+    );
+  }
+}
+
+
+/* =========================
+   PLAYER DRAWING
+========================= */
+
+function drawPlayer(){
+
+  ctx.fillStyle =
+    "rgba(255,255,255,.35)";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    player.x,
+    player.y,
+    7,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+}
+
+
+/* =========================
+   MAIN DRAW
+========================= */
+
+function draw(){
+
+  ctx.fillStyle = "#000";
+
+  ctx.fillRect(
+    0,
+    0,
+    W,
+    H
+  );
+
+
+  ctx.save();
+
+
+  ctx.translate(
+    Math.round(
+      W / 2 - player.x
+    ),
+    Math.round(
+      H / 2 - player.y
+    )
+  );
+
+
+  const minX =
+    Math.max(
+      0,
+      Math.floor(
+        (player.x - W / 2) /
+        TILE
+      ) - 2
+    );
+
+
+  const maxX =
+    Math.min(
+      MAP_W - 1,
+      Math.ceil(
+        (player.x + W / 2) /
+        TILE
+      ) + 2
+    );
+
+
+  const minY =
+    Math.max(
+      0,
+      Math.floor(
+        (player.y - H / 2) /
+        TILE
+      ) - 2
+    );
+
+
+  const maxY =
+    Math.min(
+      MAP_H - 1,
+      Math.ceil(
+        (player.y + H / 2) /
+        TILE
+      ) + 2
+    );
+
+
+  for(
+    let y = minY;
+    y <= maxY;
+    y++
+  ){
+
+    for(
+      let x = minX;
+      x <= maxX;
+      x++
+    ){
+
+      if(maze[y][x] === "#"){
+
+        drawWall(
+          x,
+          y
+        );
+      }
+    }
+  }
+
+
+  drawChaser();
+
+  drawPlayer();
+
+
+  ctx.restore();
+
+
+  /* =====================
+     VIGNETTE
+  ===================== */
+
+  const vignette =
+    ctx.createRadialGradient(
+      W / 2,
+      H / 2,
+      Math.min(W,H) * .2,
+      W / 2,
+      H / 2,
+      Math.max(W,H) * .75
+    );
+
+
+  vignette.addColorStop(
+    0,
+    "rgba(0,0,0,0)"
+  );
+
+  vignette.addColorStop(
+    .7,
+    "rgba(0,0,0,.08)"
+  );
+
+  vignette.addColorStop(
+    1,
+    "rgba(0,0,0,.65)"
+  );
+
+
+  ctx.fillStyle = vignette;
+
+  ctx.fillRect(
+    0,
+    0,
+    W,
+    H
+  );
+}
+
+
+/* =========================
+   GAME LOOP
+========================= */
+
+let lastTime =
+  performance.now();
+
+
+function gameLoop(now){
+
+  let dt =
+    (now - lastTime) / 1000;
+
+  lastTime = now;
+
+  dt = Math.min(
+    dt,
+    .033
+  );
+
+
+  /* =====================
+     PLAYER INPUT
+  ===================== */
+
+  let dx =
+    joyX *
+    player.speed *
+    dt;
+
+  let dy =
+    joyY *
+    player.speed *
+    dt;
+
+
+  const length =
+    Math.sqrt(
+      dx * dx +
+      dy * dy
+    );
+
+
+  if(
+    length >
+    player.speed * dt
+  ){
+
+    const max =
+      player.speed * dt;
+
+    dx =
+      dx / length *
+      max;
+
+    dy =
+      dy / length *
+      max;
+  }
+
+
+  movePlayer(
+    dx,
+    dy
+  );
+
+
+  /* =====================
+     GAME SYSTEMS
+  ===================== */
+
+  checkTrigger();
+
+  updateChaser(dt);
+
+
+  /* =====================
+     ANNOUNCEMENT TIMER
+  ===================== */
+
+  if(
+    announcementTimer > 0
+  ){
+
+    announcementTimer -= dt;
+
+
+    if(
+      announcementTimer <= 0
+    ){
+
+      hideAnnouncement();
+    }
+  }
+
+
+  /* =====================
+     RENDER
+  ===================== */
+
+  draw();
+
+
+  requestAnimationFrame(
+    gameLoop
+  );
+}
+
+
+requestAnimationFrame(
+  gameLoop
+);
